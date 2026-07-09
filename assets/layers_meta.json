@@ -1,0 +1,107 @@
+{
+  "cover_text": {
+    "file": "assets/layers/cover_text_alpha.png",
+    "x": 142,
+    "y": 157,
+    "w": 1131,
+    "h": 656
+  },
+  "start_button": {
+    "file": "assets/layers/start_button_alpha.png",
+    "x": 515,
+    "y": 854,
+    "w": 382,
+    "h": 165
+  },
+  "loading_spinner": {
+    "file": "assets/layers/loading_spinner_alpha.png",
+    "x": 141,
+    "y": 141,
+    "w": 128,
+    "h": 131
+  },
+  "loading_text": {
+    "file": "assets/layers/loading_text_alpha.png",
+    "x": 535,
+    "y": 1733,
+    "w": 480,
+    "h": 126
+  },
+  "loading_cat": {
+    "file": "assets/layers/loading_cat_alpha.png",
+    "x": 1044,
+    "y": 1699,
+    "w": 146,
+    "h": 126
+  },
+  "menu_bg": {
+    "file": "assets/layers/menu_bg_alpha.png",
+    "x": 397,
+    "y": 71,
+    "w": 620,
+    "h": 225
+  },
+  "menu_01_luggage": {
+    "file": "assets/layers/menu_01_luggage_alpha.png",
+    "x": 238,
+    "y": 458,
+    "w": 568,
+    "h": 113
+  },
+  "menu_02_flight": {
+    "file": "assets/layers/menu_02_flight_alpha.png",
+    "x": 240,
+    "y": 601,
+    "w": 563,
+    "h": 112
+  },
+  "menu_03_transit": {
+    "file": "assets/layers/menu_03_transit_alpha.png",
+    "x": 240,
+    "y": 744,
+    "w": 563,
+    "h": 112
+  },
+  "menu_04_hotel": {
+    "file": "assets/layers/menu_04_hotel_alpha.png",
+    "x": 240,
+    "y": 888,
+    "w": 563,
+    "h": 111
+  },
+  "menu_05_day1": {
+    "file": "assets/layers/menu_05_day1_alpha.png",
+    "x": 240,
+    "y": 1031,
+    "w": 423,
+    "h": 111
+  },
+  "menu_06_day2": {
+    "file": "assets/layers/menu_06_day2_alpha.png",
+    "x": 240,
+    "y": 1176,
+    "w": 439,
+    "h": 112
+  },
+  "menu_07_day3": {
+    "file": "assets/layers/menu_07_day3_alpha.png",
+    "x": 240,
+    "y": 1321,
+    "w": 439,
+    "h": 116
+  },
+  "menu_08_day4": {
+    "file": "assets/layers/menu_08_day4_alpha.png",
+    "x": 240,
+    "y": 1469,
+    "w": 439,
+    "h": 112
+  },
+  "menu_09_day5": {
+    "file": "assets/layers/menu_09_day5_alpha.png",
+    "x": 240,
+    "y": 1613,
+    "w": 439,
+    "h": 111
+  }
+}

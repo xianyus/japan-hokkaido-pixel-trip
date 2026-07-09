@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>JAPAN Hokkaido Pixel Trip</title>
+  <style>
+    :root {
+      --ink:#101010; --red:#ff1740; --blue:#9ed4ff; --paper:#fffdf4;
+    }
+    * { box-sizing:border-box; }
+    html,body {
+      width:100%; height:100%; margin:0; overflow:hidden;
+      background:radial-gradient(circle at top, rgba(117,185,255,.2), transparent 40%),linear-gradient(180deg,#101522,#07090f 74%);
+      font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC",sans-serif;
+      user-select:none; -webkit-tap-highlight-color:transparent;
+    }
+    button { border:0; background:none; padding:0; font:inherit; cursor:pointer; }
+    #game { position:fixed; inset:0; display:grid; place-items:center; padding:10px; }
+    .stage {
+      position:relative; aspect-ratio:1414/2000;
+      width:min(calc(100vw - 20px), calc((100vh - 20px) * 1414 / 2000));
+      max-height:calc(100vh - 20px); overflow:hidden; background:#fff;
+      image-rendering:pixelated;
+      box-shadow:0 26px 70px rgba(0,0,0,.45),0 0 0 4px rgba(255,255,255,.05);
+    }
+    .page-img,.layer-img { position:absolute; image-rendering:pixelated; user-drag:none; -webkit-user-drag:none; }
+    .page-img { inset:0; width:100%; height:100%; object-fit:cover; transition:transform .34s steps(8),opacity .22s linear,filter .22s linear; }
+    .stage.is-changing .page-img { opacity:.1; transform:translateX(-2.2%) scale(.985); filter:blur(1px); }
+    .scene-layer { position:absolute; inset:0; z-index:10; pointer-events:none; }
+    .scene-layer.show { pointer-events:auto; }
+    .hidden { display:none!important; }
+    .asset { position:absolute; pointer-events:none; }
+    .asset img { width:100%; height:100%; object-fit:contain; display:block; image-rendering:pixelated; }
+
+    .image-button {
+      position:absolute; z-index:13; display:block;
+      transition:transform .13s steps(2), filter .13s steps(2);
+      filter:drop-shadow(8px 9px 0 rgba(0,0,0,.25));
+      outline:none;
+    }
+    .image-button img { width:100%; height:100%; display:block; object-fit:contain; image-rendering:pixelated; pointer-events:none; }
+    .image-button::before {
+      content:""; position:absolute; inset:-6%; border:4px solid transparent; border-radius:8px;
+      background:rgba(158,212,255,0); z-index:-1;
+      transition:background .13s linear,border-color .13s linear,box-shadow .13s steps(2);
+    }
+    .image-button:hover,.image-button:focus-visible {
+      transform:translateY(-5px); filter:drop-shadow(11px 14px 0 rgba(0,0,0,.22));
+    }
+    .image-button:hover::before,.image-button:focus-visible::before {
+      background:rgba(158,212,255,.18); border-color:rgba(158,212,255,.6);
+      box-shadow:5px 5px 0 rgba(0,0,0,.16);
+    }
+    .image-button.is-pressed,.image-button:active {
+      transform:translateY(6px); filter:drop-shadow(3px 3px 0 rgba(0,0,0,.22));
+    }
+    .image-button.is-pressed::before,.image-button:active::before { box-shadow:1px 1px 0 rgba(0,0,0,.2); }
+    #startBtn { z-index:14; animation:startPulse 1.25s steps(2) infinite; }
+    #startBtn:hover,#startBtn:focus-visible,#startBtn.is-pressed { animation:none; }
+    @keyframes startPulse { 0%,100%{ transform:translateY(0) scale(1); } 50%{ transform:translateY(-3px) scale(1.035); } }
+    .menu-button.locked { opacity:.92; }
+    .menu-button.locked img { filter:grayscale(.25) opacity(.72); }
+
+    .loading-spinner { animation:spin 1s steps(8) infinite; transform-origin:center; }
+    .loading-text { animation:loadingBounce .7s steps(2) infinite; }
+    .loading-cat { animation:catWalk 1s steps(2) infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    @keyframes loadingBounce { 50% { transform:translateY(-4px); } }
+    @keyframes catWalk { 50% { transform:translateX(8px); } }
+
+    .progress-wrap {
+      position:absolute; left:38%; bottom:11.7%; width:24%; height:1.4%; z-index:12;
+      background:#fff; border:3px solid #111; box-shadow:4px 4px 0 rgba(0,0,0,.22); overflow:hidden; display:none;
+    }
+    .progress-wrap.show { display:block; }
+    .progress-bar { width:0%; height:100%; background:var(--red); transition:width 1.25s steps(8); }
+
+    .nav {
+      position:absolute; z-index:20; left:50%; bottom:1.2%; transform:translateX(-50%);
+      display:flex; gap:8px; align-items:center; justify-content:center; padding:8px;
+      border:4px solid #111; background:rgba(255,255,255,.92); box-shadow:6px 6px 0 rgba(0,0,0,.35);
+      opacity:0; pointer-events:none; transition:opacity .18s linear;
+    }
+    .nav.show { opacity:1; pointer-events:auto; }
+    .pixel-btn {
+      min-width:76px; padding:8px 10px; background:#fffdf4; color:#111; border:3px solid #111;
+      font-weight:900; letter-spacing:.04em; line-height:1; box-shadow:4px 4px 0 #777;
+      text-shadow:2px 2px 0 rgba(137,199,255,.55);
+    }
+    .pixel-btn.primary { background:var(--red); color:#fff; text-shadow:3px 3px 0 #000; }
+    .pixel-btn:active { transform:translate(3px,3px); box-shadow:1px 1px 0 #777; }
+    .pixel-btn:disabled { opacity:.45; }
+    .hint {
+      position:absolute; z-index:18; left:50%; bottom:8%; transform:translateX(-50%);
+      width:max-content; max-width:86%; padding:8px 12px; background:rgba(255,255,255,.9); color:#111;
+      border:3px solid #111; font-weight:900; font-size:clamp(12px,2.6vw,16px);
+      box-shadow:5px 5px 0 rgba(0,0,0,.34); text-align:center; pointer-events:none;
+    }
+    .toast {
+      position:absolute; z-index:30; left:50%; top:50%; transform:translate(-50%,-50%) scale(.94);
+      min-width:72%; padding:18px 20px; background:rgba(255,255,255,.96); color:#111;
+      border:5px solid #111; box-shadow:10px 10px 0 rgba(0,0,0,.35); font-weight:900; text-align:center;
+      opacity:0; pointer-events:none; transition:opacity .18s linear,transform .18s steps(4);
+    }
+    .toast.show { opacity:1; transform:translate(-50%,-50%) scale(1); }
+    .toast-title { color:var(--red); font-size:clamp(22px,5vw,38px); text-shadow:3px 3px 0 #000; -webkit-text-stroke:1px #111; margin-bottom:8px; }
+    .screen-flash { position:absolute; inset:0; z-index:25; pointer-events:none; background:#fff; opacity:0; }
+    .screen-flash.on { animation:flash .24s steps(2); }
+    @keyframes flash { 0%{opacity:0;} 50%{opacity:.82;} 100%{opacity:0;} }
+    @media (max-width:520px) {
+      .nav{gap:5px;padding:6px;border-width:3px;}
+      .pixel-btn{min-width:58px;padding:7px 7px;font-size:12px;border-width:2px;}
+      .hint{bottom:7.2%;}
+    }
+  </style>
+</head>
+<body>
+  <main id="game" aria-label="JAPAN Hokkaido Pixel Trip">
+    <section class="stage" id="stage">
+      <img class="page-img" id="pageImg" src="assets/cover_bg.png" alt="JAPAN Hokkaido 旅遊像素首頁" draggable="false" />
+      <div class="scene-layer show" id="coverLayer"></div>
+      <div class="scene-layer hidden" id="loadingLayer"></div>
+      <div class="scene-layer hidden" id="menuLayer"></div>
+      <div class="progress-wrap" id="progressWrap"><div class="progress-bar" id="progressBar"></div></div>
+      <div class="hint" id="hint">點 START 開始冒險</div>
+      <nav class="nav" id="nav" aria-label="頁面導覽">
+        <button class="pixel-btn" id="prevBtn">上一頁</button>
+        <button class="pixel-btn primary" id="menuBtn">目錄</button>
+        <button class="pixel-btn" id="nextBtn">下一頁</button>
+      </nav>
+      <aside class="toast" id="toast" role="status" aria-live="polite">
+        <div class="toast-title">LOCKED</div>
+        <div id="toastText">這個關卡還沒開放</div>
+      </aside>
+      <div class="screen-flash" id="flash"></div>
+    </section>
+  </main>
+  <script>
+    const META = {"cover_text":{"file":"assets/layers/cover_text_alpha.png","x":142,"y":157,"w":1131,"h":656},"start_button":{"file":"assets/layers/start_button_alpha.png","x":515,"y":854,"w":382,"h":165},"loading_spinner":{"file":"assets/layers/loading_spinner_alpha.png","x":141,"y":141,"w":128,"h":131},"loading_text":{"file":"assets/layers/loading_text_alpha.png","x":535,"y":1733,"w":480,"h":126},"loading_cat":{"file":"assets/layers/loading_cat_alpha.png","x":1044,"y":1699,"w":146,"h":126},"menu_bg":{"file":"assets/layers/menu_bg_alpha.png","x":397,"y":71,"w":620,"h":225},"menu_01_luggage":{"file":"assets/layers/menu_01_luggage_alpha.png","x":238,"y":458,"w":568,"h":113},"menu_02_flight":{"file":"assets/layers/menu_02_flight_alpha.png","x":240,"y":601,"w":563,"h":112},"menu_03_transit":{"file":"assets/layers/menu_03_transit_alpha.png","x":240,"y":744,"w":563,"h":112},"menu_04_hotel":{"file":"assets/layers/menu_04_hotel_alpha.png","x":240,"y":888,"w":563,"h":111},"menu_05_day1":{"file":"assets/layers/menu_05_day1_alpha.png","x":240,"y":1031,"w":423,"h":111},"menu_06_day2":{"file":"assets/layers/menu_06_day2_alpha.png","x":240,"y":1176,"w":439,"h":112},"menu_07_day3":{"file":"assets/layers/menu_07_day3_alpha.png","x":240,"y":1321,"w":439,"h":116},"menu_08_day4":{"file":"assets/layers/menu_08_day4_alpha.png","x":240,"y":1469,"w":439,"h":112},"menu_09_day5":{"file":"assets/layers/menu_09_day5_alpha.png","x":240,"y":1613,"w":439,"h":111}};
+    const W = 1414, H = 2000;
+    const pages = {
+      cover:   { img:'assets/cover_bg.png', alt:'JAPAN Hokkaido 旅遊像素首頁' },
+      loading: { img:'assets/blank_white.png', alt:'Loading 載入畫面' },
+      menu:    { img:'assets/blank_white.png', alt:'目錄' },
+      luggage: { img:'assets/luggage.png', alt:'行李清單' },
+      flight:  { img:'assets/flight.png', alt:'飛機航班' },
+      transit: { img:'assets/transit.png', alt:'札幌交通' },
+      hotel:   { img:'assets/hotel.png', alt:'住宿資訊' },
+      day1:    { img:'assets/day1.png', alt:'DAY1 行程' },
+    };
+    const order = ['menu','luggage','flight','transit','hotel','day1'];
+    const labels = { menu:'目錄', luggage:'行李清單', flight:'飛機航班', transit:'札幌交通', hotel:'住宿資訊', day1:'DAY1' };
+    const menuItems = [
+      { key:'menu_01_luggage', target:'luggage', label:'01 行李清單' },
+      { key:'menu_02_flight', target:'flight', label:'02 飛機航班' },
+      { key:'menu_03_transit', target:'transit', label:'03 札幌交通' },
+      { key:'menu_04_hotel', target:'hotel', label:'04 住宿資訊' },
+      { key:'menu_05_day1', target:'day1', label:'05 DAY1' },
+      { key:'menu_06_day2', target:null, label:'06 DAY2', locked:true },
+      { key:'menu_07_day3', target:null, label:'07 DAY3', locked:true },
+      { key:'menu_08_day4', target:null, label:'08 DAY4', locked:true },
+      { key:'menu_09_day5', target:null, label:'09 DAY5', locked:true },
+    ];
+
+    const pageImg = document.getElementById('pageImg');
+    const stage = document.getElementById('stage');
+    const coverLayer = document.getElementById('coverLayer');
+    const loadingLayer = document.getElementById('loadingLayer');
+    const menuLayer = document.getElementById('menuLayer');
+    const progressWrap = document.getElementById('progressWrap');
+    const progressBar = document.getElementById('progressBar');
+    const hint = document.getElementById('hint');
+    const nav = document.getElementById('nav');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const menuBtn = document.getElementById('menuBtn');
+    const toast = document.getElementById('toast');
+    const toastText = document.getElementById('toastText');
+    const flash = document.getElementById('flash');
+    let current='cover', busy=false, loadingTimer=null, toastTimer=null, touchStartX=null, touchStartY=null;
+
+    Object.values(pages).forEach(page => { const img = new Image(); img.src = page.img; });
+    Object.values(META).forEach(m => { const img = new Image(); img.src = m.file; });
+
+    function pct(v, total) { return (v / total * 100).toFixed(4) + '%'; }
+    function applyMeta(el, m) {
+      el.style.left = pct(m.x, W); el.style.top = pct(m.y, H);
+      el.style.width = pct(m.w, W); el.style.height = pct(m.h, H);
+    }
+    function imgAsset(key, cls='') {
+      const m = META[key];
+      const div = document.createElement('div');
+      div.className = 'asset ' + cls;
+      applyMeta(div, m);
+      div.innerHTML = `<img src="${m.file}" draggable="false" alt="" />`;
+      return div;
+    }
+    function imgButton(key, label, cls='') {
+      const m = META[key];
+      const btn = document.createElement('button');
+      btn.className = 'image-button ' + cls;
+      btn.setAttribute('aria-label', label);
+      applyMeta(btn, m);
+      btn.innerHTML = `<img src="${m.file}" draggable="false" alt="${label}" />`;
+      return btn;
+    }
+    function pressThen(btn, callback, delay=200) {
+      if (busy) return;
+      btn.classList.add('is-pressed');
+      window.setTimeout(() => { btn.classList.remove('is-pressed'); callback(); }, delay);
+    }
+    function playFlash() { flash.classList.remove('on'); void flash.offsetWidth; flash.classList.add('on'); }
+
+    function buildCover() {
+      coverLayer.innerHTML = '';
+      coverLayer.appendChild(imgAsset('cover_text'));
+      const start = imgButton('start_button','START 開始','start-button');
+      start.id = 'startBtn';
+      start.addEventListener('click', () => pressThen(start, () => setPage('loading')));
+      coverLayer.appendChild(start);
+    }
+    function buildLoading() {
+      loadingLayer.innerHTML = '';
+      loadingLayer.appendChild(imgAsset('loading_spinner','loading-spinner'));
+      loadingLayer.appendChild(imgAsset('loading_text','loading-text'));
+      loadingLayer.appendChild(imgAsset('loading_cat','loading-cat'));
+    }
+    function buildMenu() {
+      menuLayer.innerHTML = '';
+      menuLayer.appendChild(imgAsset('menu_bg'));
+      menuItems.forEach(item => {
+        const btn = imgButton(item.key, item.label, 'menu-button' + (item.locked ? ' locked' : ''));
+        btn.addEventListener('click', () => pressThen(btn, () => {
+          if (item.target) setPage(item.target);
+          else showToast(`${item.label} 還沒放圖片，之後可以直接接上新頁面。`);
+        }));
+        menuLayer.appendChild(btn);
+      });
+    }
+    function showLayer(layer, show) {
+      layer.classList.toggle('hidden', !show);
+      layer.classList.toggle('show', show);
+    }
+    function setPage(key, options={}) {
+      if (!pages[key] || (busy && !options.force)) return;
+      busy=true; current=key; stage.classList.add('is-changing'); playFlash();
+      window.clearTimeout(loadingTimer);
+      progressBar.style.width='0%'; progressWrap.classList.remove('show');
+      setTimeout(() => {
+        pageImg.src = pages[key].img; pageImg.alt = pages[key].alt;
+        updateUI(); stage.classList.remove('is-changing');
+        setTimeout(() => { busy=false; }, 160);
+        if (key === 'loading') {
+          progressWrap.classList.add('show');
+          requestAnimationFrame(() => { progressBar.style.width='100%'; });
+          loadingTimer = window.setTimeout(() => setPage('menu', { force:true }), 1450);
+        }
+      }, 180);
+    }
+    function updateNavState() {
+      const idx = order.indexOf(current);
+      prevBtn.disabled = idx <= 0;
+      nextBtn.disabled = idx < 0 || idx >= order.length - 1;
+    }
+    function updateUI() {
+      showLayer(coverLayer, current === 'cover');
+      showLayer(loadingLayer, current === 'loading');
+      showLayer(menuLayer, current === 'menu');
+      if (current === 'cover') buildCover();
+      if (current === 'loading') buildLoading();
+      if (current === 'menu') buildMenu();
+      nav.classList.toggle('show', order.includes(current) && current !== 'menu');
+      if (current === 'cover') { hint.textContent='點 START 開始冒險'; hint.classList.remove('hidden'); }
+      else if (current === 'menu') { hint.textContent='點選目錄項目進入頁面'; hint.classList.remove('hidden'); }
+      else if (current === 'loading') { hint.classList.add('hidden'); }
+      else {
+        hint.textContent = `${labels[current] || ''}｜可按上一頁、目錄、下一頁，也可左右滑動`;
+        hint.classList.remove('hidden');
+        window.setTimeout(() => { if (order.includes(current) && current !== 'menu') hint.classList.add('hidden'); }, 1800);
+      }
+      updateNavState();
+    }
+    function showToast(text) {
+      toastText.textContent = text; toast.classList.add('show');
+      window.clearTimeout(toastTimer); toastTimer = window.setTimeout(() => toast.classList.remove('show'), 1700);
+    }
+    function goPrev() { const idx = order.indexOf(current); if (idx > 0) setPage(order[idx - 1]); }
+    function goNext() { const idx = order.indexOf(current); if (idx >= 0 && idx < order.length - 1) setPage(order[idx + 1]); }
+
+    prevBtn.addEventListener('click', goPrev);
+    nextBtn.addEventListener('click', goNext);
+    menuBtn.addEventListener('click', () => setPage('menu'));
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && current === 'cover') {
+        const start = document.getElementById('startBtn'); if (start) pressThen(start, () => setPage('loading'));
+      }
+      if (e.key === 'ArrowRight') goNext();
+      if (e.key === 'ArrowLeft') goPrev();
+      if (e.key.toLowerCase() === 'm') setPage('menu');
+    });
+    stage.addEventListener('touchstart', (e) => {
+      const t=e.changedTouches[0]; touchStartX=t.clientX; touchStartY=t.clientY;
+    }, { passive:true });
+    stage.addEventListener('touchend', (e) => {
+      if (touchStartX === null || touchStartY === null) return;
+      const t=e.changedTouches[0], dx=t.clientX-touchStartX, dy=t.clientY-touchStartY;
+      touchStartX=null; touchStartY=null;
+      if (Math.abs(dx)>48 && Math.abs(dx)>Math.abs(dy)*1.4) dx<0 ? goNext() : goPrev();
+    }, { passive:true });
+    updateUI();
+  </script>
+</body>
+</html>
