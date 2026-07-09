@@ -64,10 +64,45 @@
 
     .loading-spinner { animation:spin 1s steps(8) infinite; transform-origin:center; }
     .loading-text { animation:loadingBounce .7s steps(2) infinite; }
-    .loading-cat { animation:catWalk 1s steps(2) infinite; }
+
+    /* 單張貓圖無法真的擺動腳，所以改成「像素原地踏步」：
+       身體上下跳、左右重心切換、影子伸縮，避免只是前後平移。 */
+    .loading-cat {
+      transform-origin:50% 100%;
+      animation:catStep .56s steps(2) infinite;
+    }
+    .loading-cat img {
+      animation:catBody .56s steps(2) infinite;
+      transform-origin:50% 100%;
+    }
+    .loading-cat::after {
+      content:"";
+      position:absolute;
+      left:18%;
+      right:18%;
+      bottom:-5%;
+      height:8%;
+      background:rgba(0,0,0,.18);
+      border-radius:50%;
+      animation:catShadow .56s steps(2) infinite;
+    }
+
     @keyframes spin { to { transform:rotate(360deg); } }
     @keyframes loadingBounce { 50% { transform:translateY(-4px); } }
-    @keyframes catWalk { 50% { transform:translateX(8px); } }
+    @keyframes catStep {
+      0%,100% { transform:translate(0,0) rotate(0deg); }
+      25% { transform:translate(3px,-5px) rotate(-2deg); }
+      50% { transform:translate(0,0) rotate(0deg); }
+      75% { transform:translate(-3px,-5px) rotate(2deg); }
+    }
+    @keyframes catBody {
+      0%,100% { transform:scale(1,1); }
+      50% { transform:scale(1.04,.96); }
+    }
+    @keyframes catShadow {
+      0%,100% { transform:scaleX(1); opacity:.18; }
+      50% { transform:scaleX(.72); opacity:.1; }
+    }
 
     .progress-wrap {
       position:absolute; left:38%; bottom:11.7%; width:24%; height:1.4%; z-index:12;
@@ -231,83 +266,61 @@
       menuLayer.appendChild(imgAsset('menu_bg'));
       menuItems.forEach(item => {
         const btn = imgButton(item.key, item.label, 'menu-button' + (item.locked ? ' locked' : ''));
-        btn.addEventListener('click', () => pressThen(btn, () => {
-          if (item.target) setPage(item.target);
-          else showToast(`${item.label} 還沒放圖片，之後可以直接接上新頁面。`);
-        }));
+        btn.addEventListener('click', () => pressThen(btn, () => item.target ? setPage(item.target) : showToast(`${item.label} 還沒放圖片，之後可以直接接上新頁面。`)));
         menuLayer.appendChild(btn);
       });
     }
-    function showLayer(layer, show) {
-      layer.classList.toggle('hidden', !show);
-      layer.classList.toggle('show', show);
-    }
+
     function setPage(key, options={}) {
       if (!pages[key] || (busy && !options.force)) return;
       busy=true; current=key; stage.classList.add('is-changing'); playFlash();
-      window.clearTimeout(loadingTimer);
-      progressBar.style.width='0%'; progressWrap.classList.remove('show');
+      window.clearTimeout(loadingTimer); progressBar.style.width='0%'; progressWrap.classList.remove('show');
       setTimeout(() => {
-        pageImg.src = pages[key].img; pageImg.alt = pages[key].alt;
-        updateUI(); stage.classList.remove('is-changing');
-        setTimeout(() => { busy=false; }, 160);
-        if (key === 'loading') {
+        pageImg.src=pages[key].img; pageImg.alt=pages[key].alt;
+        updateUI();
+        stage.classList.remove('is-changing');
+        setTimeout(() => { busy=false; },160);
+        if (key==='loading') {
           progressWrap.classList.add('show');
           requestAnimationFrame(() => { progressBar.style.width='100%'; });
-          loadingTimer = window.setTimeout(() => setPage('menu', { force:true }), 1450);
+          loadingTimer=window.setTimeout(() => setPage('menu',{force:true}),1450);
         }
-      }, 180);
-    }
-    function updateNavState() {
-      const idx = order.indexOf(current);
-      prevBtn.disabled = idx <= 0;
-      nextBtn.disabled = idx < 0 || idx >= order.length - 1;
+      },180);
     }
     function updateUI() {
-      showLayer(coverLayer, current === 'cover');
-      showLayer(loadingLayer, current === 'loading');
-      showLayer(menuLayer, current === 'menu');
-      if (current === 'cover') buildCover();
-      if (current === 'loading') buildLoading();
-      if (current === 'menu') buildMenu();
-      nav.classList.toggle('show', order.includes(current) && current !== 'menu');
-      if (current === 'cover') { hint.textContent='點 START 開始冒險'; hint.classList.remove('hidden'); }
-      else if (current === 'menu') { hint.textContent='點選目錄項目進入頁面'; hint.classList.remove('hidden'); }
-      else if (current === 'loading') { hint.classList.add('hidden'); }
+      const isCover=current==='cover', isLoading=current==='loading', isMenu=current==='menu';
+      coverLayer.classList.toggle('hidden', !isCover); coverLayer.classList.toggle('show', isCover);
+      loadingLayer.classList.toggle('hidden', !isLoading); loadingLayer.classList.toggle('show', isLoading);
+      menuLayer.classList.toggle('hidden', !isMenu); menuLayer.classList.toggle('show', isMenu);
+      nav.classList.toggle('show', order.includes(current) && current!=='menu');
+      if (isCover) { buildCover(); hint.textContent='點 START 開始冒險'; hint.classList.remove('hidden'); }
+      else if (isLoading) { buildLoading(); hint.classList.add('hidden'); }
+      else if (isMenu) { buildMenu(); hint.textContent='點選目錄項目進入頁面'; hint.classList.remove('hidden'); }
       else {
-        hint.textContent = `${labels[current] || ''}｜可按上一頁、目錄、下一頁，也可左右滑動`;
+        hint.textContent=`${labels[current]||''}｜可按上一頁、目錄、下一頁，也可左右滑動`;
         hint.classList.remove('hidden');
-        window.setTimeout(() => { if (order.includes(current) && current !== 'menu') hint.classList.add('hidden'); }, 1800);
+        window.setTimeout(() => { if(order.includes(current)&&current!=='menu') hint.classList.add('hidden'); },1800);
       }
       updateNavState();
     }
-    function showToast(text) {
-      toastText.textContent = text; toast.classList.add('show');
-      window.clearTimeout(toastTimer); toastTimer = window.setTimeout(() => toast.classList.remove('show'), 1700);
-    }
-    function goPrev() { const idx = order.indexOf(current); if (idx > 0) setPage(order[idx - 1]); }
-    function goNext() { const idx = order.indexOf(current); if (idx >= 0 && idx < order.length - 1) setPage(order[idx + 1]); }
-
-    prevBtn.addEventListener('click', goPrev);
-    nextBtn.addEventListener('click', goNext);
-    menuBtn.addEventListener('click', () => setPage('menu'));
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && current === 'cover') {
-        const start = document.getElementById('startBtn'); if (start) pressThen(start, () => setPage('loading'));
-      }
-      if (e.key === 'ArrowRight') goNext();
-      if (e.key === 'ArrowLeft') goPrev();
-      if (e.key.toLowerCase() === 'm') setPage('menu');
+    function updateNavState(){ const idx=order.indexOf(current); prevBtn.disabled=idx<=0; nextBtn.disabled=idx<0||idx>=order.length-1; }
+    function showToast(text){ toastText.textContent=text; toast.classList.add('show'); window.clearTimeout(toastTimer); toastTimer=window.setTimeout(()=>toast.classList.remove('show'),1700); }
+    function goPrev(){ const idx=order.indexOf(current); if(idx>0) setPage(order[idx-1]); }
+    function goNext(){ const idx=order.indexOf(current); if(idx>=0 && idx<order.length-1) setPage(order[idx+1]); }
+    prevBtn.addEventListener('click',goPrev); nextBtn.addEventListener('click',goNext); menuBtn.addEventListener('click',()=>setPage('menu'));
+    document.addEventListener('keydown', e => {
+      if(e.key==='Enter' && current==='cover') { const btn=document.getElementById('startBtn'); if(btn) pressThen(btn,()=>setPage('loading')); }
+      if(e.key==='ArrowRight') goNext();
+      if(e.key==='ArrowLeft') goPrev();
+      if(e.key.toLowerCase()==='m') setPage('menu');
     });
-    stage.addEventListener('touchstart', (e) => {
-      const t=e.changedTouches[0]; touchStartX=t.clientX; touchStartY=t.clientY;
-    }, { passive:true });
-    stage.addEventListener('touchend', (e) => {
-      if (touchStartX === null || touchStartY === null) return;
+    stage.addEventListener('touchstart', e => { const t=e.changedTouches[0]; touchStartX=t.clientX; touchStartY=t.clientY; }, {passive:true});
+    stage.addEventListener('touchend', e => {
+      if(touchStartX===null||touchStartY===null) return;
       const t=e.changedTouches[0], dx=t.clientX-touchStartX, dy=t.clientY-touchStartY;
       touchStartX=null; touchStartY=null;
-      if (Math.abs(dx)>48 && Math.abs(dx)>Math.abs(dy)*1.4) dx<0 ? goNext() : goPrev();
-    }, { passive:true });
+      if(Math.abs(dx)>48 && Math.abs(dx)>Math.abs(dy)*1.4) dx<0 ? goNext() : goPrev();
+    }, {passive:true});
     updateUI();
   </script>
 </body>
